@@ -5,7 +5,7 @@ There are three main resources we need to create
 
 1. Lambda Function
 
-Reads from a google sheet (and api I developed using AppScript) and convert it to a pandas datagframe and output as a csv file on S3
+Reads from a google sheet (and api I developed using AppScript) and convert it to a pandas dataframe and output as a csv file on S3
 
 2. Event Bridge Rule
 
