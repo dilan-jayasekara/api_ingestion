@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: A template for creating an API ingestion using Lambda
+Resources:
+  LambdaResource:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: api_data_dilan_jayasekara
+      Code:
+        ZipFile: |
+
+            import json
+            import pandas as pd
+            import os
+            import from botocore.vendored import requests
+            import boto3
+            from urllib.request import urlopen
+            from io import StringIO
+            
+            bucket_name = os.environ['BUCKET_NAME']
+            
+            def write_dataframe_to_csv_on_s3(dataframe, filename):
+                """ Write a dataframe to a CSV on S3 """
+                print("Writing {} records to {}".format(len(dataframe), filename))
+                 # Create buffer
+                csv_buffer = StringIO()
+                # Write dataframe to buffer
+                dataframe.to_csv(csv_buffer, sep=",", index=False)
+                # Create S3 object
+                s3_resource = boto3.resource("s3")
+                # Write buffer to S3 object
+                s3_resource.Object(bucket_name, filename).put(Body=csv_buffer.getvalue())
+            
+            def get_jsonparsed_data(url):
+                """
+                Receive the content of ``url``, parse it as JSON and return the object.
+            
+                Parameters
+                ----------
+                url : str
+            
+                Returns
+                -------
+                dict
+                """
+                response = urlopen(url)
+                data = response.read()
+                return json.loads(data)
+                
+                
+            def lambda_handler(event, context):
+                
+                url = os.environ['GOOGLE_SHEET_URL'] 	
+                data_json = get_jsonparsed_data(url)['data']
+                wastage_data = data_json
+                column_names = ["Outlet", "Date", "SupervisorName","Product","Reason ","QTY "]
+            
+            
+                df = pd.DataFrame(wastage_data, columns = column_names)
+                
+                write_dataframe_to_csv_on_s3(df,'tdf_data/tdf.csv')
+            
+            
+                # TODO implement
+                return {
+                    'statusCode': 200,
+                    'body': json.dumps("TDF Data Extraction - Success!")
+                }
+
+      Description: Lambda Function to extract data from a test Google sheet of TDF
+      Handler: index.lambda_handler
+      Role: 'arn:aws:iam::467719068422:role/service-role/google-sheet-api-wastage-role-6od8rvxw'
+      Runtime: python3.7
+      Timeout: 300
+      Variables: 
+        GOOGLE_SHEET_URL : 'https://script.googleusercontent.com/macros/echo?user_content_key=ZjrBthLPGy4-_X_6NiD7YObS2LgeI5oZCWkbZmCdu12ADNMdvrc2MqWIeWPrDAazDjZRUyOWzaIv7_n1jICxY5ubzDtqA1GLm5_BxDlH2jW0nuo2oDemN9CCS2h10ox_1xSncGQajx_ryfhECjZEnKyLJQdmPB5bq7fQpe7mCLWctipgry5xnnNpyOtSf20JzlNOak-0fF6kUi8wY0J9e-CIiQRJI4uVmWmmU2r6RoIwGiM0r4w0nA&lib=MV3sL7uzpr7ECoDVLtoQIo0ywvs8tZ0d0'
+        BUCKET_NAME : 'TDF_DATA'
+    Metadata:
+      'AWS::CloudFormation::Designer':
+        id: be9778f0-aa5f-42f2-9ccc-ee40a0072c99
+  EventBridgeResource:
+    Type: AWS::Events::Rule
+    Properties: 
+      Description: Lambda - The general event bridge trigger (Everyday at 4am for an example)
+      EventBusName: eb_general_4am_AEST
+      EventPattern: '0 17 * * ? *'
+      Name: String
+      RoleArn: String
+      ScheduleExpression: String
+      State: Enabled
+      Targets: 
+        - api_data_dilan_jayasekara
+  S3Bucket:
+      Type: AWS::S3::Bucket
+      Description: Creating Amazon S3 bucket from CloudFormation
+      Properties:
+      BucketName: TDF_DATA
+Metadata:
+  'AWS::CloudFormation::Designer':
+    be9778f0-aa5f-42f2-9ccc-ee40a0072c99:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 60
+        'y': 90
+      z: 1
+      embeds: []
